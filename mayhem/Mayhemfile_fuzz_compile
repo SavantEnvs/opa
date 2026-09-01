@@ -1,0 +1,8 @@
+project: savantenvs/opa
+target: fuzz_compile
+testsuite:
+  - https://$MAYHEM_DOMAIN/$MAYHEM_PROJECT/$MAYHEM_TARGET/testsuite.tar
+  - file://mayhem/fuzz_compile/testsuite
+cmds:
+  - cmd: /mayhem/fuzz_compile
+    libfuzzer: true

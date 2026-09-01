@@ -1,0 +1,58 @@
+//go:build go1.18
+
+// mayhem harness — Rego parser (github.com/open-policy-agent/opa/v1/ast.ParseModule).
+//
+// Fuzzes the Rego policy-source parser: the lexer/scanner, the recursive-descent
+// module/rule/expr parser, and the parsed-tree String()/stringification path that
+// every downstream OPA consumer (compiler, format, CLI) exercises. This is the
+// natural pure entry point for parsing untrusted Rego source text: deterministic,
+// no I/O, single string argument in, an *ast.Module (or a parse error) out.
+//
+// WHY A DEDICATED STAGING PACKAGE instead of dropping this file into the real
+// v1/ast directory: v1/ast already ships its own native Go fuzz functions
+// (v1/ast/fuzz_test.go: FuzzCompileModules, FuzzCompileModulesWithPrintAndAllFutureKWs)
+// alongside a mix of `package ast` (internal) and `package ast_test` (external)
+// test files. go-118-fuzz-build's package loader cannot load a directory that
+// mixes internal/external test packages (dies with "found packages ast (...) and
+// ast_test (...)"), and dropping a same-named Fuzz* function next to upstream's
+// own risks a second collision. Reaching the parser through its PUBLIC API
+// (ast.ParseModule) from a fresh single-file package sidesteps both problems —
+// see the Go section of docs/netnew-worker-prompt.md ("go-118-fuzz-build cannot
+// load a package dir that mixes internal and external test files").
+//
+// mayhem/build.sh copies this file (as a real .go file) into a leading-underscore
+// staging dir (_mayhem_harness/fuzz_parse/) that `go build`/`go test ./...`
+// wildcards skip automatically, so it can never disturb the upstream package or
+// its own test/fuzz suite. Committed as `.go.src` (non-.go name) so it is never
+// itself picked up as an ordinary source file.
+//
+// NO FILE I/O: bytes come only from the fuzzer (f.Fuzz's []byte arg, converted to
+// a Rego source string). Starter seeds are supplied by Mayhem via the
+// mayhem/Mayhemfile_fuzz_parse `testsuite:` directive, not by reading a local
+// fixture here — Mayhem runs the target from its own writable cwd (not /mayhem),
+// so any relative os.ReadFile in the fuzzed body would fail on every iteration.
+
+package mayhemfuzzparse
+
+import (
+	"testing"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
+
+func FuzzMayhemParseModule(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		mod, err := ast.ParseModule("mayhem.rego", string(data))
+		if err != nil || mod == nil {
+			// Malformed/rejected input is an expected outcome, not a finding.
+			return
+		}
+		// Walk the parsed tree further so the stringification path (used by
+		// `opa fmt`, error messages, and every module.String() caller) gets
+		// fuzzed too, not just the parse step itself.
+		_ = mod.String()
+		for _, r := range mod.Rules {
+			_ = r.String()
+		}
+	})
+}
