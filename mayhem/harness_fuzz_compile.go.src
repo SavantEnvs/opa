@@ -1,0 +1,32 @@
+//go:build go1.18
+
+// mayhem harness — Rego parse + compile (github.com/open-policy-agent/opa/v1/ast.CompileModules).
+//
+// Same public-API-only, no-file-I/O shape as harness_fuzz_parse.go.src (see that
+// file's header for why this lives in a dedicated staging package rather than
+// v1/ast itself), but drives the FULL compile pipeline: parse -> module-tree
+// rewriting -> safety/strict checks -> reference resolution -> type-checking.
+// This is the same target function upstream's own v1/ast/fuzz_test.go fuzzes
+// (FuzzCompileModules), reached here without its file-loading corpus setup
+// (cases.MustLoad(...) is a relative-path read done once at process start in
+// upstream's harness — fine under `go test`, but not something a Mayhem target's
+// setup should depend on; per-target seeds come from the Mayhemfile instead).
+//
+// A second, distinct target from fuzz_parse: CompileModules exercises a much
+// larger surface (type inference, rewrite passes, strict-mode checks) that a
+// pure ParseModule call never reaches, so keeping it separate keeps each
+// target's coverage/seed corpus meaningful on its own.
+
+package mayhemfuzzcompile
+
+import (
+	"testing"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
+
+func FuzzMayhemCompileModules(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = ast.CompileModules(map[string]string{"mayhem.rego": string(data)})
+	})
+}
