@@ -1,0 +1,25 @@
+//go:build go1.18
+
+// mayhem harness — Rego v0 parse + compile (ast.CompileModulesWithOpt, RegoVersion: RegoV0).
+//
+// Same shape as the live fuzz_compile harness, but parses as Rego v0. The default
+// (v1) parser rejects v0 rule syntax (`p { ... }`) before the compiler runs, so the
+// v0-only compiler paths (non-strict root-document shadowing, `input := 0; input()`)
+// are unreachable from ast.CompileModules. Public API only, no file I/O.
+
+package mayhemfuzzcompilev0
+
+import (
+	"testing"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
+
+func FuzzMayhemCompileModulesV0(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = ast.CompileModulesWithOpt(
+			map[string]string{"mayhem.rego": string(data)},
+			ast.CompileOpts{ParserOptions: ast.ParserOptions{RegoVersion: ast.RegoV0}},
+		)
+	})
+}
