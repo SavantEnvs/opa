@@ -1,0 +1,9 @@
+# seed-from: https://app.mayhem.security/savantenvs/opa/fuzz_compile
+project: savantenvs/opa
+target: fuzz_compile_v0-mined-30f166f
+testsuite:
+  - https://$MAYHEM_DOMAIN/$MAYHEM_PROJECT/$MAYHEM_TARGET/testsuite.tar
+  - file://mayhem/fuzz_compile_v0-mined-30f166f/testsuite
+cmds:
+  - cmd: /mayhem/fuzz_compile_v0
+    libfuzzer: true
